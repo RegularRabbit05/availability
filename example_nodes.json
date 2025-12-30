@@ -1,0 +1,11 @@
+{
+  "nodes": [
+    "node0.example.com",
+    "node1.example.com",
+    "node2.example.com"
+  ],
+  "commands": [
+    "warp-cli --accept-tos disconnect",
+    "warp-cli --accept-tos connect"
+  ]
+}
