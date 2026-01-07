@@ -17,8 +17,9 @@ import (
 )
 
 type AvailabilityNode struct {
-	IP string
-	Up bool
+	IP    string
+	Up    bool
+	Since int64
 }
 
 type Availability struct {
@@ -55,12 +56,13 @@ func startInterface(ip string, port int, application *Availability) {
 		application.Mutex.Lock()
 		defer application.Mutex.Unlock()
 		type NodeStatus struct {
-			IP string `json:"ip"`
-			Up bool   `json:"up"`
+			IP    string `json:"ip"`
+			Up    bool   `json:"up"`
+			Since int64  `json:"since"`
 		}
 		var status []NodeStatus
 		for _, node := range application.Nodes {
-			status = append(status, NodeStatus{IP: node.IP, Up: node.Up})
+			status = append(status, NodeStatus{IP: node.IP, Up: node.Up, Since: node.Since})
 		}
 		json.NewEncoder(w).Encode(status)
 	})
@@ -127,13 +129,24 @@ func main() {
 		}
 
 		application.Mutex.Lock()
-		application.Nodes = make([]AvailabilityNode, 0)
-		for _, nodeIP := range nodes {
-			if strings.ToLower(nodeIP) == strings.ToLower(os.Args[2]) {
-				continue
+		func() {
+			tmpClone := application.Nodes
+			application.Nodes = make([]AvailabilityNode, 0)
+			for _, nodeIP := range nodes {
+				if strings.ToLower(nodeIP) == strings.ToLower(os.Args[2]) {
+					continue
+				}
+				curNode := AvailabilityNode{IP: nodeIP + ":" + strconv.Itoa(serverPort), Up: true, Since: time.Now().Unix()}
+				for _, oldNode := range tmpClone {
+					if strings.ToLower(oldNode.IP) == strings.ToLower(curNode.IP) {
+						curNode.Since = oldNode.Since
+						break
+					}
+				}
+				application.Nodes = append(application.Nodes, curNode)
 			}
-			application.Nodes = append(application.Nodes, AvailabilityNode{IP: nodeIP + ":" + strconv.Itoa(serverPort), Up: true})
-		}
+		}()
+
 		application.Mutex.Unlock()
 
 		log.Printf("Loaded %d nodes\n", len(application.Nodes))

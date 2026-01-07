@@ -17,6 +17,7 @@ func initiateConnection(availabilityNode *AvailabilityNode, application *Availab
 				return
 			}
 			application.Mutex.Lock()
+			availabilityNode.Since = time.Now().Unix()
 			availabilityNode.Up = true
 			application.Mutex.Unlock()
 		}
@@ -26,9 +27,6 @@ func initiateConnection(availabilityNode *AvailabilityNode, application *Availab
 			conn, err := d.Dial("tcp", availabilityNode.IP)
 			if err != nil {
 				log.Println("Error connecting to node:", err)
-				application.Mutex.Lock()
-				availabilityNode.Up = false
-				application.Mutex.Unlock()
 				return
 			}
 			defer conn.Close()
@@ -38,17 +36,11 @@ func initiateConnection(availabilityNode *AvailabilityNode, application *Availab
 				time.Sleep(1 * time.Second)
 				_, err := conn.Write([]byte{0x2E})
 				if err != nil {
-					application.Mutex.Lock()
-					availabilityNode.Up = false
-					application.Mutex.Unlock()
 					return
 				}
 				buffer := make([]byte, 1)
 				_, err = conn.Read(buffer)
 				if err != nil {
-					application.Mutex.Lock()
-					availabilityNode.Up = false
-					application.Mutex.Unlock()
 					return
 				}
 			}
@@ -56,6 +48,7 @@ func initiateConnection(availabilityNode *AvailabilityNode, application *Availab
 
 		hasUp := false
 		application.Mutex.Lock()
+		availabilityNode.Up = false
 		for i := range application.Nodes {
 			if application.Nodes[i].Up == true {
 				hasUp = true
